@@ -25,7 +25,7 @@ init_db()
 app = FastAPI(title="家計簿アプリ API")
 
 # CORS origins (set FRONTEND_ORIGIN in .env or default)
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "https://my-kakeibo.vercel.app")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_ORIGIN],
@@ -81,6 +81,7 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         key="token",
         value=token,
         httponly=True,
+        secure=True, 
         max_age=int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS", "3600")),  # 1 hour default
         samesite="lax",
         secure=False if os.getenv("ENV", "dev") == "dev" else True
