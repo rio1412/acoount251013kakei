@@ -25,7 +25,7 @@ init_db()
 app = FastAPI(title="家計簿アプリ API")
 
 # CORS origins (set FRONTEND_ORIGIN in .env or default)
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "https://my-kakeibo-app-frontend1013.onrender.com")
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "https://my-kakeibo-app-frontend1013.vercel.app")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_ORIGIN],
