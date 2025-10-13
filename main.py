@@ -82,8 +82,8 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         value=token,
         httponly=True,
         max_age=int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS", "3600")),  # 1 hour default
-        samesite="lax",
-        secure=False if os.getenv("ENV", "dev") == "dev" else True
+        samesite="none",
+        secure=os.getenv("ENV", "dev") == "dev"
     )
     record_log(db, user.id, "LOGIN")
     return {"username": user.username, "role": user.role}
