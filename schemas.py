@@ -12,6 +12,7 @@ class TransactionCreate(BaseModel):
     amount: float
     date: datetime
     note: Optional[str] = None
+    type: Optional[str] = "expense" 
 
 class TransactionOut(TransactionCreate):
     id: int
