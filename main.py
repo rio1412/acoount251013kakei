@@ -25,7 +25,7 @@ init_db()
 app = FastAPI(title="家計簿アプリ API")
 
 # CORS origins (set FRONTEND_ORIGIN in .env or default)
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "https://my-kakeibo-app-frontend1013.vercel.app")
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_ORIGIN],
@@ -82,8 +82,8 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         value=token,
         httponly=True,
         max_age=int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS", "3600")),  # 1 hour default
-        samesite="none",
-        secure=os.getenv("ENV", "dev") != "dev"
+        samesite="lax",
+        secure=False if os.getenv("ENV", "dev") == "dev" else True
     )
     record_log(db, user.id, "LOGIN")
     return {"username": user.username, "role": user.role}
@@ -98,12 +98,16 @@ def logout(response: Response, user: User = Depends(get_current_user), db: Sessi
 @app.post("/api/transactions", response_model=TransactionOut)
 def api_create_transaction(payload: TransactionCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     tx = create_transaction(db=db, user=user, tx_in=payload)
-    record_log(db, user.id, f"ADD_TX id={tx.id}")
+    record_log(db, user.id, f"ADD_TX id={tx.id} type={payload.type}")
     return tx
 
 @app.get("/api/transactions", response_model=List[TransactionOut])
 def api_list_transactions(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    txs = list_transactions(db=db)
+    # フィルタリング: 管理者は全ユーザーの取引を表示、一般ユーザーは自分の取引のみ
+    if user.role == "admin":
+        txs = db.query(Transaction).order_by(Transaction.date.desc()).all()
+    else:
+        txs = db.query(Transaction).filter(Transaction.user_id == user.id).order_by(Transaction.date.desc()).all()
     return txs
 
 @app.delete("/api/transactions/{tx_id}")
@@ -120,14 +124,37 @@ def api_delete_transaction(tx_id: int, user: User = Depends(get_current_user), d
 # --- CSV export ---
 @app.get("/api/transactions/csv")
 def api_export_csv(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    txs = list_transactions(db=db)
+    # フィルタリング: 管理者は全ユーザーの取引を表示、一般ユーザーは自分の取引のみ
+    if user.role == "admin":
+        txs = db.query(Transaction).order_by(Transaction.date.desc()).all()
+    else:
+        txs = db.query(Transaction).filter(Transaction.user_id == user.id).order_by(Transaction.date.desc()).all()
+    
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["id", "user_id", "username", "date", "category", "amount", "note"])
+    # ヘッダー行に「種別」を追加
+    writer.writerow(["id", "user_id", "username", "date", "category", "amount", "note", "type"])
+    
     for t in txs:
-        writer.writerow([t.id, t.user_id, t.user.username if hasattr(t, "user") else "", t.date.isoformat(), t.category, t.amount, t.note or ""])
+        # typeを日本語に変換（収入/支出）
+        type_jp = "収入" if getattr(t, 'type', 'expense') == "income" else "支出"
+        writer.writerow([
+            t.id, 
+            t.user_id, 
+            t.user.username if hasattr(t, "user") and t.user else "", 
+            t.date.isoformat(), 
+            t.category, 
+            t.amount, 
+            t.note or "",
+            type_jp
+        ])
+    
     output.seek(0)
-    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=transactions.csv"})
+    return StreamingResponse(
+        iter([output.getvalue()]), 
+        media_type="text/csv", 
+        headers={"Content-Disposition": "attachment; filename=transactions.csv"}
+    )
 
 # --- User management (admin only) ---
 @app.get("/api/users", response_model=List[UserOut])
