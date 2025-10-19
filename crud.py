@@ -21,7 +21,14 @@ def get_users(db: Session):
 
 # Transactions
 def create_transaction(db: Session, user: User, tx_in: TransactionCreate) -> Transaction:
-    tx = Transaction(user_id=user.id, category=tx_in.category, amount=tx_in.amount, date=tx_in.date, note=tx_in.note)
+    tx = Transaction(
+        user_id=user.id, 
+        category=tx_in.category, 
+        amount=tx_in.amount, 
+        date=tx_in.date, 
+        note=tx_in.note,
+        type=tx_in.type  # 追加: typeフィールドを保存
+    )
     db.add(tx)
     db.commit()
     db.refresh(tx)
