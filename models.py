@@ -1,3 +1,4 @@
+# backend/models.py
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -26,6 +27,7 @@ class Transaction(Base):
     category = Column(String(50), nullable=False)
     amount = Column(Float, nullable=False)
     note = Column(String(255), nullable=True)
+    type = Column(String(10), default="expense")  # 追加: 'income' または 'expense'
 
     user = relationship("User", back_populates="transactions")
 
